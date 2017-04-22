@@ -1,8 +1,8 @@
 package com.example.administrator.cocoweather;
 
-import android.app.Fragment;
 import android.app.ProgressDialog;
 import android.os.Bundle;
+import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,6 +33,8 @@ import okhttp3.Response;
  */
 
 public class Choose_AreaFragment extends Fragment {
+    private static final String TAG="ChooseAreaFragment";
+
     public static final int LEVEL_PROVINCE = 0;
     public static final int LEVEL_CITY = 1;
 
@@ -57,6 +59,7 @@ public class Choose_AreaFragment extends Fragment {
 
     //选中的级别
     private int currentLevel;
+
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -138,10 +141,12 @@ public class Choose_AreaFragment extends Fragment {
             @Override
             public void onFailure(Call call, IOException e) {
                 getActivity().runOnUiThread(new Runnable() {
+
                     @Override
                     public void run() {
                         closeProgressDialog();
                         Toast.makeText(getContext(),"加载失败", Toast.LENGTH_SHORT).show();
+
                     }
                 });
             }
