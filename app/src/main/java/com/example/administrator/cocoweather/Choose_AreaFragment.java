@@ -1,6 +1,7 @@
 package com.example.administrator.cocoweather;
 
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
@@ -14,6 +15,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.administrator.cocoweather.database.City;
+import com.example.administrator.cocoweather.database.County;
 import com.example.administrator.cocoweather.database.Province;
 import com.example.administrator.cocoweather.util.HttpUtil;
 import com.example.administrator.cocoweather.util.Utility;
@@ -33,10 +35,10 @@ import okhttp3.Response;
  */
 
 public class Choose_AreaFragment extends Fragment {
-    private static final String TAG="ChooseAreaFragment";
 
     public static final int LEVEL_PROVINCE = 0;
     public static final int LEVEL_CITY = 1;
+    public static final int LEVEL_COUNTY = 2;
 
     private ProgressDialog progressDialog;
     private TextView titleText;
@@ -48,13 +50,13 @@ public class Choose_AreaFragment extends Fragment {
     //省列表
     private List<Province> provinceList;
 
-    //市列表
     private List<City> cityList;
+
+    private List<County> countyList;
 
     //选中的省份
     private Province selectedProvince;
 
-    //选中的城市
     private City selectedCity;
 
     //选中的级别
@@ -81,13 +83,23 @@ public class Choose_AreaFragment extends Fragment {
                 if(currentLevel == LEVEL_PROVINCE){
                     selectedProvince = provinceList.get(position);
                     queryCities();
+                }else if (currentLevel == LEVEL_CITY){
+                    selectedCity = cityList.get(position);
+                    queryCounties();
+                }else if (currentLevel == LEVEL_COUNTY){
+                    String weatherId = countyList.get(position).getWeatherId();
+                    Intent intent = new Intent(getActivity(),WeatherActivity.class);intent.putExtra("weather_id",weatherId);
+                    startActivity(intent);
+                    getActivity().finish();
                 }
             }
         });
         backButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v) {
-                if(currentLevel == LEVEL_CITY){
+                if(currentLevel == LEVEL_COUNTY){
+                    queryCities();
+                }else if (currentLevel == LEVEL_CITY){
                     queryProvinces();
                 }
             }
@@ -134,7 +146,28 @@ public class Choose_AreaFragment extends Fragment {
         }
     }
 
-    //根据传入的地址和类型从服务器上查询省市数据
+    //查询选中市内所有的县，优先从数据库查询
+    private void queryCounties(){
+        titleText.setText(selectedCity.getCityName());
+        backButton.setVisibility(View.VISIBLE);
+        countyList = DataSupport.where("cityid = ?",String.valueOf(selectedCity.getId())).find(County.class);
+        if (countyList.size()>0){
+            dataList.clear();
+            for (County county : countyList){
+                dataList.add(county.getCountyName());
+            }
+            adapter.notifyDataSetChanged();
+            listView.setSelection(0);
+            currentLevel = LEVEL_COUNTY;
+        }else {
+            int provinceCode = selectedProvince.getProvinceCode();
+            int cityCode = selectedCity.getCityCode();
+            String address = "http://guolin.tech/api/china/"+provinceCode+"/"+cityCode;
+            queryFromServer(address,"county");
+        }
+    }
+
+    //根据传入的地址和类型从服务器上查询省市县数据
     private void queryFromServer(String address,final String type){
         showProgressDialog();
         HttpUtil.sendOkHttpRequest(address, new Callback() {
@@ -159,6 +192,8 @@ public class Choose_AreaFragment extends Fragment {
                     result = Utility.handleProvinceResponse(responseText);
                 }else if("city".equals(type)){
                     result = Utility.handleCityResponse(responseText,selectedProvince.getId());
+                }else if("county".equals(type)){
+                    result = Utility.handleCountyResponse(responseText,selectedCity.getId());
                 }
                 if(result){
                     getActivity().runOnUiThread(new Runnable() {
@@ -169,6 +204,8 @@ public class Choose_AreaFragment extends Fragment {
                                 queryProvinces();
                             }else if("city".equals(type)){
                                 queryCities();
+                            }else if("county".equals(type)){
+                                queryCounties();
                             }
                         }
                     });
